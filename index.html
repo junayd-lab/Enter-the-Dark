@@ -1,0 +1,1828 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>THE WATCHER — THE EYE THAT SEES YOU</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts for Cinematic Horror Typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+    <!-- Three.js r128 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <style>
+        :root {
+            --blood-red: #8a0707;
+            --crimson-glow: #ff1e1e;
+            --void-black: #030304;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--void-black);
+            color: #d4d4d8;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        .font-cinzel {
+            font-family: 'Cinzel', serif;
+        }
+
+        .font-mono-tech {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Main 3D Canvas Container */
+        #canvas-container {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+            cursor: crosshair;
+        }
+
+        /* Touch & Click Darkness Ripple Overlay */
+        #ripple-canvas {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        /* Cinematic Post-Processing Overlays (Vignette, Film Grain, Glitch) */
+        .vignette-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 3;
+            pointer-events: none;
+            background: radial-gradient(
+                circle at center,
+                transparent 28%,
+                rgba(4, 2, 3, 0.55) 65%,
+                rgba(1, 0, 1, 0.96) 100%
+            );
+            transition: opacity 0.4s ease;
+        }
+
+        .crimson-flash-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 4;
+            pointer-events: none;
+            background: radial-gradient(
+                circle at center,
+                rgba(190, 10, 15, 0.45) 0%,
+                rgba(90, 0, 0, 0.75) 60%,
+                rgba(15, 0, 0, 0.95) 100%
+            );
+            opacity: 0;
+            mix-blend-mode: screen;
+            transition: opacity 0.08s ease-out;
+        }
+
+        /* Subtle 4K Film Grain */
+        .film-grain {
+            position: fixed;
+            inset: -50%;
+            width: 200%;
+            height: 200%;
+            z-index: 5;
+            pointer-events: none;
+            opacity: 0.045;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            animation: grainShift 0.5s steps(4) infinite;
+        }
+
+        @keyframes grainShift {
+            0% { transform: translate(0, 0); }
+            25% { transform: translate(-2%, 3%); }
+            50% { transform: translate(3%, -2%); }
+            75% { transform: translate(-3%, -3%); }
+            100% { transform: translate(2%, 2%); }
+        }
+
+        /* Glitch / Chromatic Aberration Effect during Jumpscare */
+        .glitch-active #canvas-container {
+            filter: contrast(1.45) saturate(1.6) drop-shadow(-6px 0px 0px rgba(255, 0, 25, 0.7)) drop-shadow(6px 0px 0px rgba(0, 210, 255, 0.5));
+            transform: scale(1.03);
+        }
+
+        .glitch-slice {
+            position: fixed;
+            inset: 0;
+            z-index: 6;
+            pointer-events: none;
+            opacity: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent 0px,
+                rgba(255, 15, 15, 0.12) 2px,
+                transparent 4px,
+                rgba(0, 0, 0, 0.45) 8px
+            );
+        }
+
+        .glitch-active .glitch-slice {
+            opacity: 1;
+            animation: glitchJitter 0.12s infinite;
+        }
+
+        @keyframes glitchJitter {
+            0% { transform: translate(0, 0) skewX(0deg); }
+            25% { transform: translate(-8px, 2px) skewX(2deg); }
+            50% { transform: translate(6px, -3px) skewX(-2deg); }
+            75% { transform: translate(-4px, 4px) skewX(1deg); }
+            100% { transform: translate(0, 0) skewX(0deg); }
+        }
+
+        /* UI Button Styling */
+        .horror-btn {
+            position: relative;
+            background: rgba(12, 10, 12, 0.72);
+            border: 1px solid rgba(160, 25, 25, 0.35);
+            color: #d4d4d8;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            backdrop-filter: blur(8px);
+            transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            overflow: hidden;
+        }
+
+        .horror-btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at center, rgba(185, 20, 20, 0.28), transparent 75%);
+            opacity: 0;
+            transition: opacity 0.35s ease;
+        }
+
+        .horror-btn:hover {
+            border-color: rgba(235, 40, 40, 0.8);
+            color: #ffffff;
+            box-shadow: 0 0 25px rgba(180, 15, 15, 0.35), inset 0 0 12px rgba(180, 15, 15, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .horror-btn:hover::before {
+            opacity: 1;
+        }
+
+        .horror-btn:active {
+            transform: translateY(0px) scale(0.98);
+        }
+
+        .horror-btn-danger {
+            border-color: rgba(200, 20, 20, 0.55);
+            color: #fca5a5;
+        }
+
+        .horror-btn-danger:hover {
+            background: rgba(95, 10, 10, 0.65);
+            border-color: #ff2a2a;
+            box-shadow: 0 0 35px rgba(255, 20, 20, 0.55), inset 0 0 15px rgba(255, 20, 20, 0.35);
+        }
+
+        /* Auto-fading HUD when idle */
+        #hud-layer {
+            transition: opacity 0.8s ease;
+        }
+        .hud-dimmed {
+            opacity: 0.22;
+        }
+        #hud-layer:hover {
+            opacity: 1 !important;
+        }
+
+        /* Opening Screen Pulse */
+        @keyframes slowPulse {
+            0%, 100% { opacity: 0.35; transform: scale(1); }
+            50% { opacity: 0.75; transform: scale(1.06); }
+        }
+        .pulse-halo {
+            animation: slowPulse 5s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 3D WebGL Canvas -->
+    <div id="canvas-container" aria-label="Interactive 3D Horror Eye"></div>
+
+    <!-- 2D Interactive Darkness Ripple Canvas -->
+    <canvas id="ripple-canvas"></canvas>
+
+    <!-- Atmospheric Post-Processing Layers -->
+    <div class="vignette-overlay"></div>
+    <div id="crimson-flash" class="crimson-flash-overlay"></div>
+    <div class="glitch-slice"></div>
+    <div class="film-grain"></div>
+
+    <!-- OPENING OVERLAY SCREEN -->
+    <div id="intro-overlay" class="fixed inset-0 z-30 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md transition-opacity duration-1000 px-6 text-center">
+        <!-- Subtle Crimson Backlight Halo -->
+        <div class="pulse-halo absolute w-72 h-72 md:w-96 md:h-96 rounded-full bg-red-950/30 blur-3xl pointer-events-none"></div>
+
+        <div class="relative z-10 max-w-xl flex flex-col items-center">
+            <div class="flex items-center gap-3 mb-4 text-red-500/80 font-mono-tech text-xs tracking-[0.35em] uppercase">
+                <span class="w-2 h-2 rounded-full bg-red-600 animate-ping"></span>
+                <span>Psychological Interactive Experience</span>
+            </div>
+
+            <h1 class="font-cinzel text-4xl sm:text-6xl md:text-7xl font-bold tracking-[0.22em] text-zinc-100 drop-shadow-[0_4px_24px_rgba(180,0,0,0.45)] mb-4">
+            <button id="btn-enter" class="horror-btn horror-btn-danger px-9 py-4 rounded text-xs sm:text-sm font-semibold tracking-[0.28em] mb-6">
+                ENTER THE DARK
+            </button>
+
+            <!-- Pre-entry accessibility & audio toggles -->
+            <div class="flex flex-wrap items-center justify-center gap-4 text-[11px] font-mono-tech text-zinc-400 tracking-widest mb-6">
+                <button id="btn-intro-sound" class="px-3 py-1.5 rounded border border-zinc-800 hover:border-red-800/60 transition-colors">
+                    SOUND: <span id="intro-sound-label" class="text-red-400">ON</span>
+                </button>
+                <button id="btn-intro-flash" class="px-3 py-1.5 rounded border border-zinc-800 hover:border-red-800/60 transition-colors">
+                    REDUCED FLASHING: <span id="intro-flash-label" class="text-zinc-300">OFF</span>
+                </button>
+            </div>
+
+            <!-- Creator Credit on Menu -->
+            <div class="flex items-center gap-2 text-xs font-mono-tech tracking-[0.3em] text-red-500/80 mb-2 border-t border-red-950/40 pt-4 w-full justify-center">
+                <span class="w-1.5 h-1.5 rounded-full bg-red-600"></span>
+                <span>GAME BY JUNAYD KHAN</span>
+                <span class="w-1.5 h-1.5 rounded-full bg-red-600"></span>
+            </div>
+
+            <p class="text-[11px] text-zinc-500 max-w-sm leading-relaxed tracking-wide">
+                Move your cursor or drag your finger through the darkness. Touch or click the eye to provoke a response. Headphones strongly recommended.
+            </p>
+        </div>
+    </div>
+
+    <!-- MINIMAL CINEMATIC HUD (Visible after entering) -->
+    <div id="hud-layer" class="fixed inset-0 z-20 pointer-events-none flex flex-col justify-between p-4 sm:p-7 opacity-0">
+        <!-- Top Bar -->
+        <div class="flex items-start justify-between w-full">
+            <div class="flex flex-col">
+                <div class="flex items-center gap-2.5">
+                    <span id="status-dot" class="w-2 h-2 rounded-full bg-red-600 shadow-[0_0_10px_#ff0000]"></span>
+                    <span class="font-cinzel text-xs sm:text-sm tracking-[0.28em] text-zinc-300/90 font-semibold">THE WATCHER</span>
+                </div>
+                <span id="gaze-telemetry" class="font-mono-tech text-[10px] tracking-[0.2em] text-red-400/70 mt-1">
+                    STATE: OBSERVING SUBJECT
+                </span>
+            </div>
+
+            <!-- Subtle Top-Right Controls -->
+            <div class="flex flex-wrap items-center justify-end gap-2 pointer-events-auto">
+                <button id="btn-sound" class="horror-btn px-3 py-2 rounded text-[10px] sm:text-xs font-mono-tech" title="Toggle Audio">
+                    SOUND: <span id="hud-sound-label" class="text-red-400">ON</span>
+                </button>
+                <button id="btn-flash" class="horror-btn px-3 py-2 rounded text-[10px] sm:text-xs font-mono-tech" title="Toggle Reduced Flashing">
+                    FLASH: <span id="hud-flash-label">NORMAL</span>
+                </button>
+                <button id="btn-fullscreen" class="horror-btn px-3 py-2 rounded text-[10px] sm:text-xs font-mono-tech" title="Toggle Fullscreen">
+                    FULLSCREEN
+                </button>
+            </div>
+        </div>
+
+        <!-- Center Subtle Prompt Notification (for Jumpscare / Stare messages) -->
+        <div id="whisper-banner" class="self-center text-center pointer-events-none transition-opacity duration-700 opacity-0">
+            <p id="whisper-text" class="font-cinzel text-xs sm:text-sm tracking-[0.35em] text-red-500/80 uppercase drop-shadow-[0_2px_10px_rgba(255,0,0,0.6)]">
+                DO NOT LOOK AWAY
+            </p>
+        </div>
+
+        <!-- Bottom Bar -->
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-3 w-full">
+            <div class="hidden sm:flex items-center gap-4 text-[10px] font-mono-tech text-zinc-500 tracking-[0.18em]">
+                <span>PUPILLARY REFLEX: ACTIVE</span>
+                <span>•</span>
+                <span id="agitation-readout">AGITATION: 12%</span>
+            </div>
+
+            <div class="flex flex-col items-center gap-1.5 w-full sm:w-auto">
+                <div class="flex items-center justify-center pointer-events-auto">
+                    <button id="btn-disturb" class="horror-btn horror-btn-danger px-5 py-2.5 rounded text-[11px] sm:text-xs font-cinzel font-semibold tracking-[0.24em] shadow-lg">
+                        DISTURB THE WATCHER
+                    </button>
+                </div>
+                <!-- In-Game Watermark / Credits -->
+                <span class="font-mono-tech text-[10px] tracking-[0.28em] text-red-500/60 drop-shadow-[0_1px_4px_rgba(255,0,0,0.3)]">
+                    GAME BY JUNAYD KHAN
+                </span>
+            </div>
+
+            <div class="hidden sm:block text-[10px] font-mono-tech text-zinc-500 tracking-[0.18em]">
+                CLICK OR TOUCH TO FOCUS
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**************************************************************************
+         * 1. APPLICATION STATE & CONFIGURATION
+         **************************************************************************/
+        const State = {
+            hasEntered: false,
+            soundEnabled: true,
+            reducedFlashing: false,
+            isJumpscaring: false,
+            jumpscareCooldown: 0,
+
+            // Normalized pointer coordinates (-1 to 1)
+            pointerX: 0,
+            pointerY: 0,
+            lastPointerX: 0,
+            lastPointerY: 0,
+            pointerVelocity: 0,
+            isPointerDown: false,
+            lastInteractionTime: performance.now(),
+
+            // Eye anatomical tracking & kinematics
+            targetYaw: 0,
+            targetPitch: 0,
+            currentYaw: 0,
+            currentPitch: 0,
+            saccadeOffsetYaw: 0,
+            saccadeOffsetPitch: 0,
+
+            // Autonomous horror behavior states: 'TRACKING', 'LOOK_AWAY', 'DEAD_STARE', 'WIDE_STARE'
+            behaviorMode: 'TRACKING',
+            behaviorTimer: 0,
+
+            // Pupil & Iris physiology
+            targetPupilSize: 0.34,
+            currentPupilSize: 0.34,
+            agitation: 0.15,        // 0.0 to 1.0 (controls vein brightness, red iris glow, micro-tremor)
+            veinPulse: 0.0,
+
+            // Eyelid kinematics (0 = normal open, 1 = fully closed blink, -0.38 = unnaturally wide open)
+            blinkAmount: 0.0,
+            isBlinking: false,
+            blinkTimer: 2.5,
+            eyelidFlinch: 0.0,
+
+            // Camera trauma / shake
+            cameraShake: 0.0,
+            cameraZoomOffset: 0.0,
+
+            // Click counter on eye for organic jumpscare trigger
+            eyeClickCount: 0,
+            lastEyeClickTime: 0
+        };
+
+        /**************************************************************************
+         * 2. PROCEDURAL WEB AUDIO API HORROR SOUND ENGINE
+         * Synthesizes sub-bass drones, irregular breathing, wet biological eye
+         * rotation squelches, focus pulses, and terrifying jumpscare stings.
+         **************************************************************************/
+        class HorrorAudioEngine {
+            constructor() {
+                this.ctx = null;
+                this.masterGain = null;
+                this.droneGain = null;
+                this.isInitialized = false;
+                this.breathTimer = null;
+            }
+
+            init() {
+                if (this.isInitialized) return;
+                try {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioCtx();
+
+                    this.masterGain = this.ctx.createGain();
+                    this.masterGain.gain.value = State.soundEnabled ? 0.85 : 0.0;
+                    this.masterGain.connect(this.ctx.destination);
+
+                    this.startAmbientDrones();
+                    this.scheduleBreathingLoop();
+                    this.isInitialized = true;
+                } catch (err) {
+                    console.warn("Web Audio API could not initialize:", err);
+                }
+            }
+
+            setSoundEnabled(enabled) {
+                State.soundEnabled = enabled;
+                if (!this.isInitialized && enabled && State.hasEntered) {
+                    this.init();
+                }
+                if (this.ctx && this.masterGain) {
+                    if (this.ctx.state === 'suspended' && enabled) {
+                        this.ctx.resume();
+                    }
+                    const now = this.ctx.currentTime;
+                    this.masterGain.gain.cancelScheduledValues(now);
+                    this.masterGain.gain.setTargetAtTime(enabled ? 0.85 : 0.0, now, 0.08);
+                }
+            }
+
+            // Deep ominous dark room sub-bass drone + detuned fifth
+            startAmbientDrones() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+
+                this.droneGain = this.ctx.createGain();
+                this.droneGain.gain.setValueAtTime(0.01, now);
+                this.droneGain.gain.exponentialRampToValueAtTime(0.28, now + 3.0);
+                this.droneGain.connect(this.masterGain);
+
+                // Sub-bass oscillator (42 Hz)
+                this.osc1 = this.ctx.createOscillator();
+                this.osc1.type = 'sine';
+                this.osc1.frequency.setValueAtTime(42, now);
+
+                // Dark gritty sawtooth harmonic (63.5 Hz tritone/fifth edge) through lowpass
+                this.osc2 = this.ctx.createOscillator();
+                this.osc2.type = 'sawtooth';
+                this.osc2.frequency.setValueAtTime(63.2, now);
+
+                this.droneFilter = this.ctx.createBiquadFilter();
+                this.droneFilter.type = 'lowpass';
+                this.droneFilter.frequency.setValueAtTime(110, now);
+                this.droneFilter.Q.setValueAtTime(4.5, now);
+
+                // Slow LFO modulating the drone filter cutoff
+                const lfo = this.ctx.createOscillator();
+                lfo.type = 'sine';
+                lfo.frequency.setValueAtTime(0.14, now);
+                const lfoGain = this.ctx.createGain();
+                lfoGain.gain.setValueAtTime(38, now);
+                lfo.connect(lfoGain);
+                lfoGain.connect(this.droneFilter.frequency);
+
+                this.osc1.connect(this.droneGain);
+                this.osc2.connect(this.droneFilter);
+                this.droneFilter.connect(this.droneGain);
+
+                this.osc1.start(now);
+                this.osc2.start(now);
+                lfo.start(now);
+            }
+
+            // Modulate drone intensity dynamically with eye agitation
+            updateDrone(agitation) {
+                if (!this.isInitialized || !this.ctx || State.isJumpscaring) return;
+                const now = this.ctx.currentTime;
+                const baseFreq = 42 + agitation * 14;
+                this.osc1.frequency.setTargetAtTime(baseFreq, now, 0.2);
+                this.droneFilter.frequency.setTargetAtTime(95 + agitation * 160, now, 0.2);
+            }
+
+            // Quiet, unsettling irregular breathing-like ambience in the dark
+            scheduleBreathingLoop() {
+                const triggerBreath = () => {
+                    if (this.isInitialized && State.soundEnabled && !State.isJumpscaring) {
+                        this.playBreathCycle();
+                    }
+                    const nextDelay = 4800 + Math.random() * 4500;
+                    this.breathTimer = setTimeout(triggerBreath, nextDelay);
+                };
+                this.breathTimer = setTimeout(triggerBreath, 2500);
+            }
+
+            playBreathCycle() {
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const duration = 2.6 + Math.random() * 0.8;
+
+                // Pink-ish noise buffer
+                const bufferSize = this.ctx.sampleRate * duration;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                let b0 = 0, b1 = 0, b2 = 0;
+                for (let i = 0; i < bufferSize; i++) {
+                    const white = Math.random() * 2 - 1;
+                    b0 = 0.997 * b0 + white * 0.029;
+                    b1 = 0.985 * b1 + white * 0.032;
+                    b2 = 0.950 * b2 + white * 0.048;
+                    data[i] = (b0 + b1 + b2) * 0.35;
+                }
+
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(320, now);
+                filter.frequency.exponentialRampToValueAtTime(520, now + duration * 0.45);
+                filter.frequency.exponentialRampToValueAtTime(240, now + duration);
+                filter.Q.setValueAtTime(3.2, now);
+
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.001, now);
+                gain.gain.linearRampToValueAtTime(0.045, now + duration * 0.42);
+                gain.gain.exponentialRampToValueAtTime(0.0008, now + duration);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.masterGain);
+
+                noise.start(now);
+                noise.stop(now + duration);
+            }
+
+            // Subtle wet organic squelch when the eye blinks or makes a rapid saccade
+            playWetEyeSound(intensity = 0.5) {
+                if (!this.isInitialized || !this.ctx || !State.soundEnabled) return;
+                const now = this.ctx.currentTime;
+                const dur = 0.09 + Math.random() * 0.06;
+
+                const osc = this.ctx.createOscillator();
+                osc.type = 'sine';
+                const startFreq = 260 + Math.random() * 180;
+                osc.frequency.setValueAtTime(startFreq, now);
+                osc.frequency.exponentialRampToValueAtTime(startFreq * 2.4, now + dur * 0.6);
+                osc.frequency.exponentialRampToValueAtTime(140, now + dur);
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(650, now);
+                filter.Q.setValueAtTime(6.0, now);
+
+                const gain = this.ctx.createGain();
+                const peak = Math.min(0.12, 0.035 * intensity);
+                gain.gain.setValueAtTime(0.001, now);
+                gain.gain.linearRampToValueAtTime(peak, now + dur * 0.25);
+                gain.gain.exponentialRampToValueAtTime(0.0005, now + dur);
+
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.masterGain);
+
+                osc.start(now);
+                osc.stop(now + dur);
+            }
+
+            // Deep low-frequency sub-bass pulse when focusing on the user's touch/click
+            playFocusPulse() {
+                if (!this.isInitialized || !this.ctx || !State.soundEnabled) return;
+                const now = this.ctx.currentTime;
+
+                const osc = this.ctx.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(78, now);
+                osc.frequency.exponentialRampToValueAtTime(31, now + 0.55);
+
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.001, now);
+                gain.gain.linearRampToValueAtTime(0.32, now + 0.04);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+
+                osc.connect(gain);
+                gain.connect(this.masterGain);
+
+                osc.start(now);
+                osc.stop(now + 0.62);
+            }
+
+            // Jumpscare audio sequence: brief silence drop -> sharp dissonant horror sting
+            playJumpscareSting() {
+                if (!this.isInitialized || !this.ctx || !State.soundEnabled) return;
+                const now = this.ctx.currentTime;
+
+                // 1. Cut ambient drone briefly for eerie vacuum before impact
+                if (this.droneGain) {
+                    this.droneGain.gain.cancelScheduledValues(now);
+                    this.droneGain.gain.setValueAtTime(0.001, now);
+                    this.droneGain.gain.setTargetAtTime(0.32, now + 1.4, 0.8);
+                }
+
+                const impactTime = now + 0.28; // matches visual lunge
+
+                // 2. Massive sub-bass boom
+                const subOsc = this.ctx.createOscillator();
+                subOsc.type = 'triangle';
+                subOsc.frequency.setValueAtTime(115, impactTime);
+                subOsc.frequency.exponentialRampToValueAtTime(24, impactTime + 1.6);
+
+                const subGain = this.ctx.createGain();
+                subGain.gain.setValueAtTime(0.001, impactTime);
+                subGain.gain.linearRampToValueAtTime(0.75, impactTime + 0.02);
+                subGain.gain.exponentialRampToValueAtTime(0.001, impactTime + 1.7);
+
+                subOsc.connect(subGain);
+                subGain.connect(this.masterGain);
+                subOsc.start(impactTime);
+                subOsc.stop(impactTime + 1.75);
+
+                // 3. Dissonant metallic cluster shriek (4-voice microtonal horror chord)
+                const shriekFreqs = [587.33, 622.25, 830.61, 1108.73, 1567.98];
+                shriekFreqs.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    osc.type = idx % 2 === 0 ? 'sawtooth' : 'square';
+                    osc.frequency.setValueAtTime(freq, impactTime);
+                    // Unsettling downward pitch bend
+                    osc.frequency.exponentialRampToValueAtTime(freq * (0.82 + idx * 0.03), impactTime + 1.35);
+
+                    const filter = this.ctx.createBiquadFilter();
+                    filter.type = 'bandpass';
+                    filter.frequency.setValueAtTime(freq * 1.2, impactTime);
+                    filter.Q.setValueAtTime(2.5, impactTime);
+
+                    const gain = this.ctx.createGain();
+                    gain.gain.setValueAtTime(0.001, impactTime);
+                    gain.gain.linearRampToValueAtTime(0.14, impactTime + 0.015);
+                    gain.gain.exponentialRampToValueAtTime(0.0008, impactTime + 1.4);
+
+                    osc.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(this.masterGain);
+
+                    osc.start(impactTime);
+                    osc.stop(impactTime + 1.45);
+                });
+
+                // 4. Sharp noise burst transient
+                const bufLen = Math.floor(this.ctx.sampleRate * 0.6);
+                const noiseBuf = this.ctx.createBuffer(1, bufLen, this.ctx.sampleRate);
+                const output = noiseBuf.getChannelData(0);
+                for (let i = 0; i < bufLen; i++) {
+                    output[i] = (Math.random() * 2 - 1) * Math.exp(-i / (this.ctx.sampleRate * 0.15));
+                }
+                const whiteNoise = this.ctx.createBufferSource();
+                whiteNoise.buffer = noiseBuf;
+
+                const noiseGain = this.ctx.createGain();
+                noiseGain.gain.setValueAtTime(0.38, impactTime);
+                noiseGain.gain.exponentialRampToValueAtTime(0.01, impactTime + 0.55);
+
+                whiteNoise.connect(noiseGain);
+                noiseGain.connect(this.masterGain);
+                whiteNoise.start(impactTime);
+            }
+        }
+
+        const AudioEngine = new HorrorAudioEngine();
+
+        /**************************************************************************
+         * 3. 2D LOCALIZED DARKNESS RIPPLE CANVAS (Mobile Touch & Desktop Click)
+         **************************************************************************/
+        const rippleCanvas = document.getElementById('ripple-canvas');
+        const rippleCtx = rippleCanvas.getContext('2d');
+        const ripples = [];
+
+        function resizeRippleCanvas() {
+            rippleCanvas.width = window.innerWidth;
+            rippleCanvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeRippleCanvas);
+        resizeRippleCanvas();
+
+        function spawnDarknessRipple(x, y, isIntense = false) {
+            ripples.push({
+                x,
+                y,
+                radius: 4,
+                maxRadius: isIntense ? Math.max(window.innerWidth, window.innerHeight) * 0.45 : 190,
+                alpha: isIntense ? 0.65 : 0.42,
+                speed: isIntense ? 8.5 : 3.8,
+                lineWidth: isIntense ? 3.5 : 1.8
+            });
+        }
+
+        function updateAndRenderRipples() {
+            rippleCtx.clearRect(0, 0, rippleCanvas.width, rippleCanvas.height);
+            for (let i = ripples.length - 1; i >= 0; i--) {
+                const r = ripples[i];
+                r.radius += r.speed;
+                r.alpha *= 0.96;
+
+                if (r.alpha <= 0.01 || r.radius >= r.maxRadius) {
+                    ripples.splice(i, 1);
+                    continue;
+                }
+
+                // Outer crimson-black distortion ring
+                const grad = rippleCtx.createRadialGradient(
+                    r.x, r.y, Math.max(0, r.radius - 18),
+                    r.x, r.y, r.radius + 12
+                );
+                grad.addColorStop(0, `rgba(0, 0, 0, 0)`);
+                grad.addColorStop(0.5, `rgba(165, 12, 18, ${r.alpha * 0.65})`);
+                grad.addColorStop(0.8, `rgba(10, 0, 2, ${r.alpha * 0.9})`);
+                grad.addColorStop(1, `rgba(0, 0, 0, 0)`);
+
+                rippleCtx.beginPath();
+                rippleCtx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
+                rippleCtx.strokeStyle = grad;
+                rippleCtx.lineWidth = r.lineWidth * 10;
+                rippleCtx.stroke();
+            }
+        }
+
+        /**************************************************************************
+         * 4. THREE.JS SCENE, CAMERA, LIGHTING & CUSTOM GLSL HORROR EYE
+         **************************************************************************/
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x030304);
+        scene.fog = new THREE.FogExp2(0x030203, 0.14);
+
+        const camera = new THREE.PerspectiveCamera(
+            36,
+            window.innerWidth / window.innerHeight,
+            0.1,
+            50
+        );
+        const BASE_CAMERA_Z = window.innerWidth < 768 ? 6.4 : 5.2;
+        camera.position.set(0, 0, BASE_CAMERA_Z);
+
+        const renderer = new THREE.WebGLRenderer({
+            antialias: true,
+            powerPreference: 'high-performance'
+        });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.05;
+        container.appendChild(renderer.domElement);
+
+        // --- Procedural Skin Bump & Roughness Map Generator (for Eyelids & Socket) ---
+        function createProceduralSkinTexture() {
+            const size = 512;
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = '#808080';
+            ctx.fillRect(0, 0, size, size);
+
+            // Fine skin pores & concentric eyelid crease lines
+            for (let i = 0; i < 14000; i++) {
+                const x = Math.random() * size;
+                const y = Math.random() * size;
+                const r = 0.6 + Math.random() * 1.8;
+                const shade = Math.random() > 0.5 ? 105 : 150;
+                ctx.fillStyle = `rgba(${shade}, ${shade}, ${shade}, 0.22)`;
+                ctx.beginPath();
+                ctx.arc(x, y, r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Horizontal fine skin wrinkles
+            ctx.strokeStyle = 'rgba(40, 40, 40, 0.28)';
+            for (let i = 0; i < 420; i++) {
+                const x = Math.random() * size;
+                const y = Math.random() * size;
+                const len = 8 + Math.random() * 28;
+                ctx.lineWidth = 0.5 + Math.random() * 1.2;
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.quadraticCurveTo(x + len * 0.5, y + (Math.random() - 0.5) * 6, x + len, y);
+                ctx.stroke();
+            }
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            texture.repeat.set(3, 2);
+            return texture;
+        }
+
+        const skinBumpTexture = createProceduralSkinTexture();
+
+        // --- Master Group Holding Socket + Eyeball + Eyelids ---
+        const watcherRoot = new THREE.Group();
+        scene.add(watcherRoot);
+
+        // Eyeball Group (Rotates to track cursor/touch)
+        const eyeballGroup = new THREE.Group();
+        watcherRoot.add(eyeballGroup);
+
+        /**************************************************************************
+         * 5. CUSTOM GLSL SHADER FOR ULTRA-DETAILED IRIS, PUPIL & SCLERA VEINS
+         **************************************************************************/
+        const eyeUniforms = {
+            uTime: { value: 0 },
+            uPupilSize: { value: 0.34 },
+            uAgitation: { value: 0.15 },
+            uVeinPulse: { value: 0.0 },
+            uLightPos1: { value: new THREE.Vector3(2.4, 1.8, 3.2) },
+            uLightPos2: { value: new THREE.Vector3(-2.8, -1.5, 1.5) }, // Crimson rim light
+            uFlicker: { value: 1.0 }
+        };
+
+        const eyeballVertexShader = `
+            varying vec3 vNormal;
+            varying vec3 vObjectPos;
+            varying vec3 vWorldPos;
+            varying vec3 vViewPosition;
+
+            void main() {
+                vObjectPos = position;
+                vNormal = normalize(normalMatrix * normal);
+                vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+                vWorldPos = worldPosition.xyz;
+                vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                vViewPosition = -mvPosition.xyz;
+                gl_Position = projectionMatrix * mvPosition;
+            }
+        `;
+
+        const eyeballFragmentShader = `
+            uniform float uTime;
+            uniform float uPupilSize;
+            uniform float uAgitation;
+            uniform float uVeinPulse;
+            uniform vec3 uLightPos1;
+            uniform vec3 uLightPos2;
+            uniform float uFlicker;
+
+            varying vec3 vNormal;
+            varying vec3 vObjectPos;
+            varying vec3 vWorldPos;
+            varying vec3 vViewPosition;
+
+            // High-precision procedural hash & 2D/3D noise functions
+            float hash21(vec2 p) {
+                p = fract(p * vec2(234.34, 435.345));
+                p += dot(p, p + 34.23);
+                return fract(p.x * p.y);
+            }
+
+            float noise2D(vec2 p) {
+                vec2 i = floor(p);
+                vec2 f = fract(p);
+                f = f * f * (3.0 - 2.0 * f);
+                float a = hash21(i);
+                float b = hash21(i + vec2(1.0, 0.0));
+                float c = hash21(i + vec2(0.0, 1.0));
+                float d = hash21(i + vec2(1.0, 1.0));
+                return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+            }
+
+            float fbm(vec2 p) {
+                float v = 0.0;
+                float a = 0.5;
+                mat2 rot = mat2(cos(0.5), sin(0.5), -sin(0.5), cos(0.5));
+                for (int i = 0; i < 5; i++) {
+                    v += a * noise2D(p);
+                    p = rot * p * 2.05 + vec2(10.7, 23.1);
+                    a *= 0.5;
+                }
+                return v;
+            }
+
+            // Ridge noise for branching blood capillaries & veins
+            float ridgeNoise(vec2 p) {
+                float n = noise2D(p);
+                return 1.0 - abs(n * 2.0 - 1.0);
+            }
+
+            float veinPattern(vec2 p) {
+                float v = 0.0;
+                float amp = 0.55;
+                float freq = 1.0;
+                mat2 rot = mat2(0.8, 0.6, -0.6, 0.8);
+                for (int i = 0; i < 4; i++) {
+                    float r = ridgeNoise(p * freq);
+                    r = pow(r, 7.0);
+                    v += r * amp;
+                    p = rot * p + vec2(1.7, 3.2);
+                    freq *= 2.15;
+                    amp *= 0.52;
+                }
+                return clamp(v, 0.0, 1.0);
+            }
+
+            void main() {
+                vec3 dir = normalize(vObjectPos);
+                vec3 viewDir = normalize(vViewPosition);
+                vec3 normal = normalize(vNormal);
+
+                // Polar coordinates centered on the anterior pole (+Z axis)
+                // r = 0 at center of pupil, r = 0.48 at iris outer limbus
+                float r = length(dir.xy);
+                float theta = atan(dir.y, dir.x);
+
+                // Anatomical parallax concavity inside the iris chamber
+                vec2 parallaxOffset = viewDir.xy * 0.045 * smoothstep(0.5, 0.0, r);
+                vec2 pCoord = dir.xy - parallaxOffset;
+                float pr = length(pCoord);
+                float pTheta = atan(pCoord.y, pCoord.x);
+
+                // Iris outer radius = 0.465
+                float irisOuterRadius = 0.465;
+                // Dynamic pupil radius with subtle organic edge breathing
+                float edgeFlutter = sin(pTheta * 9.0 + uTime * 3.5) * 0.004 + cos(pTheta * 5.0 - uTime * 2.1) * 0.003;
+                float pupilRadius = clamp(uPupilSize * 0.42 + edgeFlutter, 0.07, 0.36);
+
+                // Normalized coordinate across iris ring (0 = pupil border, 1 = outer limbal ring)
+                float irisNorm = clamp((pr - pupilRadius) / max(0.001, (irisOuterRadius - pupilRadius)), 0.0, 1.0);
+
+                // ===============================================================
+                // 1. DEEP BLACK PUPIL
+                // ===============================================================
+                vec3 pupilColor = vec3(0.002, 0.001, 0.002);
+                // Faint ominous abyssal crimson deep inside the dilated pupil
+                float innerAbyss = smoothstep(pupilRadius, 0.0, pr);
+                pupilColor += vec3(0.06, 0.002, 0.002) * pow(innerAbyss, 3.0) * (0.4 + uAgitation * 0.9);
+
+                // ===============================================================
+                // 2. ULTRA-DETAILED PROCEDURAL IRIS (Thousands of radial fibers)
+                // ===============================================================
+                // Warp theta slightly using low-freq noise for organic wavy stromal fibers
+                float angleWarp = fbm(vec2(pTheta * 3.0, pr * 8.0)) * 0.14;
+                float wTheta = pTheta + angleWarp;
+
+                // Multi-frequency radial iris fibers
+                float fineFibers = sin(wTheta * 140.0) * 0.5 + 0.5;
+                fineFibers *= noise2D(vec2(wTheta * 65.0, irisNorm * 14.0));
+                float microFibers = noise2D(vec2(wTheta * 220.0, irisNorm * 22.0));
+                float coarseCrypts = fbm(vec2(wTheta * 16.0, irisNorm * 6.5));
+
+                // Collarette ring (anatomical jagged ring ~35% out from pupil)
+                float collarettePos = 0.32 + 0.06 * sin(wTheta * 11.0 + coarseCrypts * 3.0);
+                float collarettePeak = exp(-pow((irisNorm - collarettePos) * 7.5, 2.0));
+
+                // Combine fibers
+                float fiberMask = mix(fineFibers, microFibers, 0.45) * 1.35;
+                fiberMask = mix(fiberMask, coarseCrypts, 0.35);
+
+                // Base ancient horror iris palette: dark amber-hazel, charcoal slate, and blood crimson
+                vec3 irisDark = vec3(0.03, 0.015, 0.012);
+                vec3 irisMid = vec3(0.16, 0.055, 0.03);
+                vec3 irisHighlight = vec3(0.38, 0.11, 0.045);
+                vec3 irisBlood = vec3(0.75, 0.04, 0.03);
+
+                vec3 irisCol = mix(irisDark, irisMid, fiberMask);
+                irisCol = mix(irisCol, irisHighlight, collarettePeak * (0.65 + 0.35 * fineFibers));
+
+                // Subtle red internal subsurface illumination inside the iris
+                float innerRedGlow = smoothstep(0.85, 0.1, irisNorm) * pow(coarseCrypts, 1.4);
+                irisCol += irisBlood * innerRedGlow * (0.35 + uAgitation * 1.15 + uVeinPulse * 0.6);
+
+                // Sphincter shadow right at pupil edge & dark outer limbal ring
+                float pupilEdgeBevel = smoothstep(0.0, 0.09, irisNorm);
+                float limbalRing = smoothstep(1.0, 0.72, irisNorm);
+                irisCol *= (0.25 + 0.75 * pupilEdgeBevel) * (0.12 + 0.88 * limbalRing);
+
+                // ===============================================================
+                // 3. SCLERA (WHITE OF THE EYE) & DEEP BLOOD-RED VEINS
+                // ===============================================================
+                // Organic off-white/yellowish-grey bruised sclera base
+                float scleraNoise = fbm(dir.xy * 7.5);
+                vec3 scleraBase = mix(vec3(0.68, 0.62, 0.59), vec3(0.52, 0.44, 0.42), scleraNoise * 0.5);
+
+                // Darken sclera further back toward the eye socket & near the limbus
+                float scleraRadialFade = smoothstep(0.45, 0.96, r);
+                scleraBase = mix(scleraBase, vec3(0.26, 0.09, 0.08), scleraRadialFade * 0.72);
+
+                // Multi-layered arterial & capillary blood veins radiating from outer socket toward iris
+                vec2 veinUV = vec2(theta * 2.4, r * 4.2);
+                float majorVeins = veinPattern(veinUV * 1.3 + vec2(0.0, scleraNoise * 0.6));
+                float capillaries = veinPattern(veinUV * 3.4 - vec2(scleraNoise * 0.9, 0.4));
+
+                // Veins are denser near outer sclera and taper as they reach the iris border
+                float veinMask = smoothstep(0.45, 0.58, r);
+                float pulseFactor = 0.5 + 0.5 * sin(uTime * 3.8 + r * 6.0);
+                float agitationBoost = 1.0 + uAgitation * 1.4 + uVeinPulse * 1.2 + pulseFactor * 0.25;
+
+                float totalVeins = clamp((majorVeins * 1.15 + capillaries * 0.55) * veinMask * agitationBoost, 0.0, 1.0);
+
+                vec3 darkBlood = vec3(0.28, 0.01, 0.015);
+                vec3 brightBlood = vec3(0.78, 0.03, 0.02);
+                vec3 veinColor = mix(darkBlood, brightBlood, clamp(uAgitation + majorVeins * 0.5, 0.0, 1.0));
+
+                vec3 scleraCol = mix(scleraBase, veinColor, totalVeins * 0.88);
+                // Subtle red subsurface bleed around heavy veins
+                scleraCol -= vec3(0.0, 0.08, 0.09) * capillaries * veinMask * (0.5 + uAgitation);
+
+                // ===============================================================
+                // 4. BLEND PUPIL -> IRIS -> SCLERA
+                // ===============================================================
+                float pupilBlend = smoothstep(pupilRadius - 0.012, pupilRadius + 0.012, pr);
+                float irisBlend = smoothstep(irisOuterRadius - 0.018, irisOuterRadius + 0.022, r);
+
+                vec3 surfaceColor = mix(pupilColor, irisCol, pupilBlend);
+                surfaceColor = mix(surfaceColor, scleraCol, irisBlend);
+
+                // Ensure back hemisphere of eyeball is dark tissue
+                if (dir.z < 0.0) {
+                    surfaceColor = vec3(0.08, 0.02, 0.02);
+                }
+
+                // ===============================================================
+                // 5. CINEMATIC STUDIO LIGHTING & SUBSURFACE SCATTERING
+                // ===============================================================
+                vec3 lightDir1 = normalize(uLightPos1 - vWorldPos);
+                vec3 lightDir2 = normalize(uLightPos2 - vWorldPos);
+
+                // Diffuse + Fake Subsurface Scattering wrap
+                float diff1 = max(dot(normal, lightDir1), 0.0);
+                float sss1 = max(0.0, dot(normal, lightDir1) + 0.35) / 1.35;
+                float diff2 = max(dot(normal, lightDir2), 0.0);
+
+                vec3 keyLight = vec3(1.0, 0.95, 0.92) * (diff1 * 0.72 + pow(sss1, 2.0) * 0.28) * uFlicker;
+                vec3 crimsonRim = vec3(0.95, 0.08, 0.06) * pow(diff2, 1.4) * (0.45 + uAgitation * 0.7);
+                vec3 ambient = vec3(0.04, 0.025, 0.028);
+
+                // Anatomical eyeball ambient occlusion near upper/lower eyelids
+                float socketAO = smoothstep(0.98, 0.35, r);
+
+                vec3 finalColor = surfaceColor * (ambient + keyLight + crimsonRim) * (0.35 + 0.65 * socketAO);
+
+                // Add self-luminous crimson glow inside iris & veins during high agitation
+                float emissiveMask = (innerRedGlow * (1.0 - irisBlend) * pupilBlend) + (majorVeins * veinMask * irisBlend * 0.45);
+                finalColor += vec3(0.85, 0.04, 0.02) * emissiveMask * (uAgitation * 0.65 + uVeinPulse * 0.85);
+
+                gl_FragColor = vec4(finalColor, 1.0);
+            }
+        `;
+
+        // Create High-Resolution Inner Eyeball Mesh
+        const eyeballGeo = new THREE.SphereGeometry(1.18, 96, 96);
+        const eyeballMat = new THREE.ShaderMaterial({
+            uniforms: eyeUniforms,
+            vertexShader: eyeballVertexShader,
+            fragmentShader: eyeballFragmentShader
+        });
+        const eyeballMesh = new THREE.Mesh(eyeballGeo, eyeballMat);
+        eyeballGroup.add(eyeballMesh);
+
+        /**************************************************************************
+         * 6. WET GLOSSY CORNEA & DARK LIQUID REFLECTION SHADER
+         * Slightly larger shell with anatomical anterior corneal dome bulge,
+         * studio window specular highlights, Fresnel rim, and dark liquid tear waves.
+         **************************************************************************/
+        const corneaVertexShader = `
+            varying vec3 vNormal;
+            varying vec3 vWorldPos;
+            varying vec3 vViewDir;
+            varying vec3 vObjPos;
+
+            void main() {
+                vObjPos = position;
+                // Anatomical corneal dome bulge over the iris (+Z pole)
+                float irisZone = smoothstep(0.42, 0.56, normalize(position).z);
+                vec3 bulgedPos = position + normal * (irisZone * 0.042);
+
+                vNormal = normalize(normalMatrix * normal);
+                vec4 worldPos = modelMatrix * vec4(bulgedPos, 1.0);
+                vWorldPos = worldPos.xyz;
+                vViewDir = normalize(cameraPosition - worldPos.xyz);
+
+                gl_Position = projectionMatrix * viewMatrix * worldPos;
+            }
+        `;
+
+        const corneaFragmentShader = `
+            uniform float uTime;
+            uniform float uAgitation;
+            uniform float uFlicker;
+
+            varying vec3 vNormal;
+            varying vec3 vWorldPos;
+            varying vec3 vViewDir;
+            varying vec3 vObjPos;
+
+            void main() {
+                vec3 N = normalize(vNormal);
+                vec3 V = normalize(vViewDir);
+
+                // Subtle moving liquid tear film normal perturbation
+                float tearWave = sin(vObjPos.y * 28.0 - uTime * 1.6 + sin(vObjPos.x * 18.0)) * 0.008;
+                N = normalize(N + vec3(tearWave, tearWave * 0.7, 0.0));
+
+                vec3 R = reflect(-V, N);
+
+                // Fresnel reflection factor (water/cornea IOR ~1.376)
+                float fresnel = pow(1.0 - max(dot(N, V), 0.0), 3.6);
+
+                // Primary sharp studio window / softbox highlight
+                vec3 keyDir = normalize(vec3(0.42, 0.46, 0.85));
+                float specPrimary = pow(max(dot(R, keyDir), 0.0), 190.0);
+                // Secondary softer wet halo around highlight
+                float specHalo = pow(max(dot(R, keyDir), 0.0), 28.0) * 0.16;
+
+                // Secondary cold pinpoint catchlight
+                vec3 fillDir = normalize(vec3(-0.48, 0.25, 0.84));
+                float specPin = pow(max(dot(R, fillDir), 0.0), 340.0) * 0.65;
+
+                // Crimson rim reflection from bottom-left
+                vec3 rimDir = normalize(vec3(-0.65, -0.55, 0.45));
+                float specCrimson = pow(max(dot(R, rimDir), 0.0), 22.0) * (0.35 + uAgitation * 0.65);
+
+                vec3 reflectionColor = vec3(1.0, 0.97, 0.95) * (specPrimary * 1.45 + specHalo + specPin) * uFlicker
+                                     + vec3(0.95, 0.08, 0.08) * specCrimson
+                                     + vec3(0.18, 0.04, 0.05) * fresnel;
+
+                float alpha = clamp((specPrimary + specHalo * 0.7 + specPin + specCrimson * 0.4 + fresnel * 0.38), 0.0, 0.95);
+                gl_FragColor = vec4(reflectionColor, alpha);
+            }
+        `;
+
+        const corneaGeo = new THREE.SphereGeometry(1.192, 80, 80);
+        const corneaMat = new THREE.ShaderMaterial({
+            uniforms: eyeUniforms,
+            vertexShader: corneaVertexShader,
+            fragmentShader: corneaFragmentShader,
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
+        });
+        const corneaMesh = new THREE.Mesh(corneaGeo, corneaMat);
+        eyeballGroup.add(corneaMesh);
+
+        /**************************************************************************
+         * 7. DETAILED EYELIDS, SKIN SOCKET, CARUNCLE & LOWER TEAR LINE
+         **************************************************************************/
+        const darkSkinMaterial = new THREE.MeshStandardMaterial({
+            color: 0x160d0e,
+            roughness: 0.68,
+            metalness: 0.06,
+            bumpMap: skinBumpTexture,
+            bumpScale: 0.028
+        });
+
+        const wetInnerRimMaterial = new THREE.MeshStandardMaterial({
+            color: 0x380c0f,
+            roughness: 0.18,
+            metalness: 0.1,
+            bumpMap: skinBumpTexture,
+            bumpScale: 0.012
+        });
+
+        // Upper & Lower Deforming Eyelids
+        const upperLidGroup = new THREE.Group();
+        const lowerLidGroup = new THREE.Group();
+        watcherRoot.add(upperLidGroup);
+        watcherRoot.add(lowerLidGroup);
+
+        // Upper Eyelid Shell (Half-hemisphere shell wrapping closely over eyeball)
+        const lidRadius = 1.24;
+        const upperLidGeo = new THREE.SphereGeometry(lidRadius, 64, 32, 0, Math.PI * 2, 0, Math.PI * 0.52);
+        const upperLidMesh = new THREE.Mesh(upperLidGeo, darkSkinMaterial);
+        upperLidGroup.add(upperLidMesh);
+
+        // Thickened wet mucosal margin along the eyelid rim
+        const lidRimGeo = new THREE.TorusGeometry(lidRadius * 0.995, 0.052, 20, 64, Math.PI);
+        const upperRimMesh = new THREE.Mesh(lidRimGeo, wetInnerRimMaterial);
+        upperRimMesh.rotation.z = 0;
+        upperLidGroup.add(upperRimMesh);
+
+        // Upper Eyelid Fold / Crease (adds deep anatomical shadow above the lid)
+        const upperFoldGeo = new THREE.TorusGeometry(lidRadius * 1.04, 0.095, 24, 64, Math.PI * 0.92);
+        const upperFoldMesh = new THREE.Mesh(upperFoldGeo, darkSkinMaterial);
+        upperFoldMesh.rotation.z = Math.PI * 0.04;
+        upperFoldMesh.rotation.x = -0.36;
+        upperFoldMesh.position.z = 0.06;
+        watcherRoot.add(upperFoldMesh);
+
+        // Lower Eyelid Shell
+        const lowerLidGeo = new THREE.SphereGeometry(lidRadius * 0.995, 64, 32, 0, Math.PI * 2, Math.PI * 0.48, Math.PI * 0.52);
+        const lowerLidMesh = new THREE.Mesh(lowerLidGeo, darkSkinMaterial);
+        lowerLidGroup.add(lowerLidMesh);
+
+        const lowerRimMesh = new THREE.Mesh(lidRimGeo, wetInnerRimMaterial);
+        lowerRimMesh.rotation.z = Math.PI;
+        lowerLidGroup.add(lowerRimMesh);
+
+        // Lower Eyelid Bag / Wrinkle Crease
+        const lowerFoldGeo = new THREE.TorusGeometry(lidRadius * 1.03, 0.075, 20, 64, Math.PI * 0.86);
+        const lowerFoldMesh = new THREE.Mesh(lowerFoldGeo, darkSkinMaterial);
+        lowerFoldMesh.rotation.z = Math.PI * 1.07;
+        lowerFoldMesh.rotation.x = 0.38;
+        lowerFoldMesh.position.z = 0.04;
+        watcherRoot.add(lowerFoldMesh);
+
+        // Realistic Wet Tear Meniscus (Moisture collecting along the lower eyelid)
+        const tearMeniscusGeo = new THREE.TorusGeometry(1.195, 0.022, 16, 64, Math.PI * 0.72);
+        const tearMeniscusMat = new THREE.MeshPhysicalMaterial({
+            color: 0x220505,
+            roughness: 0.04,
+            metalness: 0.1,
+            transmission: 0.65,
+            transparent: true,
+            opacity: 0.85,
+            reflectivity: 1.0
+        });
+        const tearMeniscusMesh = new THREE.Mesh(tearMeniscusGeo, tearMeniscusMat);
+        tearMeniscusMesh.rotation.z = Math.PI * 1.14;
+        tearMeniscusMesh.position.z = 0.045;
+        lowerLidGroup.add(tearMeniscusMesh);
+
+        // Medial Canthus Caruncle (fleshy wet corner tear duct tissue)
+        const caruncleGeo = new THREE.SphereGeometry(0.16, 24, 24);
+        caruncleGeo.scale(1.2, 0.75, 0.8);
+        const caruncleMesh = new THREE.Mesh(caruncleGeo, wetInnerRimMaterial);
+        caruncleMesh.position.set(-1.08, -0.04, 0.52);
+        watcherRoot.add(caruncleMesh);
+
+        // Surrounding Deep Orbital Skin Cavity / Mask (blends the eye socket seamlessly into pitch darkness)
+        const socketRingGeo = new THREE.RingGeometry(1.16, 4.8, 64, 8);
+        // Push outer vertices back and curve inner rim into the socket
+        const posAttr = socketRingGeo.attributes.position;
+        for (let i = 0; i < posAttr.count; i++) {
+            const vx = posAttr.getX(i);
+            const vy = posAttr.getY(i);
+            const dist = Math.sqrt(vx * vx + vy * vy);
+            // Almond eye socket shaping
+            const almondScaleY = 0.68 + 0.25 * Math.min(1.0, (dist - 1.16) / 2.2);
+            posAttr.setY(i, vy * almondScaleY);
+            const zDepth = -Math.pow(Math.max(0, dist - 1.15), 1.35) * 0.35 + 0.12;
+            posAttr.setZ(i, zDepth);
+        }
+        socketRingGeo.computeVertexNormals();
+
+        const socketCavityMat = new THREE.MeshStandardMaterial({
+            color: 0x0b0708,
+            roughness: 0.85,
+            metalness: 0.04,
+            bumpMap: skinBumpTexture,
+            bumpScale: 0.035,
+            side: THREE.DoubleSide
+        });
+        const socketCavityMesh = new THREE.Mesh(socketRingGeo, socketCavityMat);
+        socketCavityMesh.position.z = 0.22;
+        watcherRoot.add(socketCavityMesh);
+
+        // Set default resting eyelid angles (open almond shape)
+        const BASE_UPPER_LID_OPEN = -0.58;
+        const BASE_LOWER_LID_OPEN = 0.52;
+        upperLidGroup.rotation.x = BASE_UPPER_LID_OPEN;
+        lowerLidGroup.rotation.x = BASE_LOWER_LID_OPEN;
+
+        /**************************************************************************
+         * 8. STUDIO HORROR LIGHTING & VOLUMETRIC DUST/SMOKE PARTICLES
+         **************************************************************************/
+        // Cold top-right key light
+        const keyLight = new THREE.PointLight(0xfff0ea, 1.55, 14, 1.8);
+        keyLight.position.set(2.4, 1.8, 3.2);
+        scene.add(keyLight);
+
+        // Deep Crimson bottom-left rim light
+        const crimsonRimLight = new THREE.PointLight(0xd90b12, 2.2, 12, 1.6);
+        crimsonRimLight.position.set(-2.8, -1.6, 1.8);
+        scene.add(crimsonRimLight);
+
+        // Subtle overhead back rim light for eyelid silhouette
+        const topRimLight = new THREE.PointLight(0x7a090d, 1.1, 10, 2.0);
+        topRimLight.position.set(0.0, 2.6, -1.0);
+        scene.add(topRimLight);
+
+        // Floating Dust Motes & Drifting Volumetric Fog Particles
+        const particleCount = 240;
+        const particleGeo = new THREE.BufferGeometry();
+        const particlePositions = new Float32Array(particleCount * 3);
+        const particleSpeeds = new Float32Array(particleCount);
+
+        for (let i = 0; i < particleCount; i++) {
+            particlePositions[i * 3] = (Math.random() - 0.5) * 9.0;
+            particlePositions[i * 3 + 1] = (Math.random() - 0.5) * 6.5;
+            particlePositions[i * 3 + 2] = (Math.random() - 0.5) * 5.0 + 1.2;
+            particleSpeeds[i] = 0.15 + Math.random() * 0.45;
+        }
+        particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+
+        // Soft circular dust texture generated procedurally
+        function createDustSpriteTexture() {
+            const c = document.createElement('canvas');
+            c.width = 64;
+            c.height = 64;
+            const ctx = c.getContext('2d');
+            const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+            g.addColorStop(0, 'rgba(255, 210, 210, 0.85)');
+            g.addColorStop(0.4, 'rgba(180, 40, 40, 0.35)');
+            g.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = g;
+            ctx.fillRect(0, 0, 64, 64);
+            return new THREE.CanvasTexture(c);
+        }
+
+        const particleMat = new THREE.PointsMaterial({
+            map: createDustSpriteTexture(),
+            size: 0.065,
+            transparent: true,
+            opacity: 0.42,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending
+        });
+        const dustParticles = new THREE.Points(particleGeo, particleMat);
+        scene.add(dustParticles);
+
+        /**************************************************************************
+         * 9. INTERACTION, GAZE TRACKING & TOUCH CONTROLS
+         **************************************************************************/
+        const raycaster = new THREE.Raycaster();
+        const mouseNDC = new THREE.Vector2();
+        let hudIdleTimeout = null;
+        const hudLayer = document.getElementById('hud-layer');
+        const telemetryEl = document.getElementById('gaze-telemetry');
+        const agitationEl = document.getElementById('agitation-readout');
+        const whisperBanner = document.getElementById('whisper-banner');
+        const whisperText = document.getElementById('whisper-text');
+
+        function wakeHUD() {
+            if (!State.hasEntered) return;
+            hudLayer.classList.remove('hud-dimmed');
+            clearTimeout(hudIdleTimeout);
+            hudIdleTimeout = setTimeout(() => {
+                if (State.hasEntered && !State.isJumpscaring) {
+                    hudLayer.classList.add('hud-dimmed');
+                }
+            }, 3200);
+        }
+
+        function showWhisper(message, duration = 2200) {
+            whisperText.textContent = message;
+            whisperBanner.style.opacity = '1';
+            setTimeout(() => {
+                whisperBanner.style.opacity = '0';
+            }, duration);
+        }
+
+        function handlePointerMove(clientX, clientY, isTouch = false) {
+            wakeHUD();
+            const nx = (clientX / window.innerWidth) * 2 - 1;
+            const ny = -(clientY / window.innerHeight) * 2 + 1;
+
+            const dx = nx - State.pointerX;
+            const dy = ny - State.pointerY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            State.pointerVelocity = Math.min(1.0, State.pointerVelocity + dist * 2.2);
+            State.pointerX = nx;
+            State.pointerY = ny;
+            State.lastInteractionTime = performance.now();
+
+            // Sudden rapid cursor movement triggers eyelid flinch & biological wet saccade sound
+            if (dist > 0.22 && !State.isJumpscaring) {
+                State.eyelidFlinch = Math.min(0.32, State.eyelidFlinch + dist * 0.55);
+                State.agitation = Math.min(1.0, State.agitation + 0.08);
+                AudioEngine.playWetEyeSound(0.65);
+
+                // Snap back to tracking immediately if it was looking away
+                if (State.behaviorMode !== 'TRACKING') {
+                    State.behaviorMode = 'TRACKING';
+                }
+            }
+
+            if (isTouch && State.isPointerDown) {
+                if (Math.random() < 0.28) {
+                    spawnDarknessRipple(clientX, clientY, false);
+                }
+            }
+        }
+
+        function handlePointerDown(clientX, clientY, isTouch = false) {
+            if (!State.hasEntered) return;
+            wakeHUD();
+            State.isPointerDown = true;
+            handlePointerMove(clientX, clientY, isTouch);
+
+            // Create localized ripple in the surrounding darkness
+            spawnDarknessRipple(clientX, clientY, false);
+
+            // Rapidly focus on touch/click point & constrict pupil slightly
+            State.behaviorMode = 'TRACKING';
+            State.targetPupilSize = 0.21;
+            State.veinPulse = 0.65;
+            State.agitation = Math.min(1.0, State.agitation + 0.14);
+            AudioEngine.playFocusPulse();
+            AudioEngine.playWetEyeSound(0.8);
+
+            // Raycast to check if user clicked/touched directly on the eye
+            mouseNDC.set(State.pointerX, State.pointerY);
+            raycaster.setFromCamera(mouseNDC, camera);
+            const hits = raycaster.intersectObject(eyeballMesh);
+
+            if (hits.length > 0 && !State.isJumpscaring) {
+                const now = performance.now();
+                if (now - State.lastEyeClickTime < 1400) {
+                    State.eyeClickCount++;
+                } else {
+                    State.eyeClickCount = 1;
+                }
+                State.lastEyeClickTime = now;
+
+                // Eyelid squint reaction when poked
+                State.eyelidFlinch = 0.42;
+
+                if (State.eyeClickCount === 2) {
+                    showWhisper("DO NOT TOUCH IT", 1600);
+                } else if (State.eyeClickCount >= 3) {
+                    State.eyeClickCount = 0;
+                    triggerJumpscare();
+                }
+            }
+        }
+
+        function handlePointerUp() {
+            State.isPointerDown = false;
+            // Relax pupil back toward baseline after releasing finger/mouse
+            if (!State.isJumpscaring) {
+                State.targetPupilSize = 0.34;
+            }
+        }
+
+        // Mouse Listeners
+        window.addEventListener('mousemove', (e) => handlePointerMove(e.clientX, e.clientY, false));
+        window.addEventListener('mousedown', (e) => {
+            if (e.target.closest('button')) return;
+            handlePointerDown(e.clientX, e.clientY, false);
+        });
+        window.addEventListener('mouseup', handlePointerUp);
+
+        // Touch Listeners (Mobile)
+        window.addEventListener('touchstart', (e) => {
+            if (e.target.closest('button')) return;
+            if (e.touches.length > 0) {
+                const t = e.touches[0];
+                handlePointerDown(t.clientX, t.clientY, true);
+            }
+        }, { passive: true });
+
+        window.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 0) {
+                const t = e.touches[0];
+                handlePointerMove(t.clientX, t.clientY, true);
+            }
+        }, { passive: true });
+
+        window.addEventListener('touchend', handlePointerUp);
+
+        /**************************************************************************
+         * 10. THE JUMPSCARE EVENT ("DISTURB THE WATCHER")
+         **************************************************************************/
+        const crimsonFlashEl = document.getElementById('crimson-flash');
+
+        function triggerJumpscare() {
+            const now = performance.now();
+            if (State.isJumpscaring || now < State.jumpscareCooldown) return;
+
+            State.isJumpscaring = true;
+            State.jumpscareCooldown = now + 4500;
+            State.behaviorMode = 'TRACKING';
+
+            telemetryEl.textContent = "STATE: SUBJECT COMPROMISED";
+            telemetryEl.classList.add('text-red-500');
+
+            // Play Jumpscare audio (includes 280ms eerie silence vacuum before impact)
+            AudioEngine.playJumpscareSting();
+
+            // Phase 1: Eerie 280ms dead freeze & pupil contraction before violent lunge
+            State.pointerX = 0;
+            State.pointerY = 0;
+            State.targetPupilSize = 0.14;
+            State.agitation = 1.0;
+
+            setTimeout(() => {
+                // Phase 2: Violent lock-on, pupil abyssal dilation, eyelids peel wide, camera lunge
+                State.targetPupilSize = 0.72;
+                State.veinPulse = 1.6;
+                State.cameraShake = 0.36;
+                State.cameraZoomOffset = -1.65; // Push camera rapidly toward eye
+
+                // Spawn central shockwave ripple
+                spawnDarknessRipple(window.innerWidth * 0.5, window.innerHeight * 0.5, true);
+
+                // Trigger glitch & crimson flash (respecting Reduced Flashing toggle)
+                document.body.classList.add('glitch-active');
+                if (!State.reducedFlashing) {
+                    crimsonFlashEl.style.opacity = '0.92';
+                } else {
+                    crimsonFlashEl.style.opacity = '0.28';
+                }
+
+                showWhisper("IT SEES INSIDE YOU", 2000);
+
+                // Phase 3: End flash & glitch quickly to avoid strobing
+                setTimeout(() => {
+                    crimsonFlashEl.style.opacity = '0';
+                    document.body.classList.remove('glitch-active');
+                }, 260);
+
+                // Phase 4: Recede back into heavy darkness leaving the eye staring silently
+                setTimeout(() => {
+                    State.cameraZoomOffset = 0.0;
+                    State.targetPupilSize = 0.38;
+                    State.isJumpscaring = false;
+                    telemetryEl.textContent = "STATE: OBSERVING SUBJECT";
+                }, 1450);
+
+            }, 280);
+        }
+
+        /**************************************************************************
+         * 11. UI CONTROLS & EVENT BINDINGS
+         **************************************************************************/
+        const introOverlay = document.getElementById('intro-overlay');
+        const btnEnter = document.getElementById('btn-enter');
+        const btnIntroSound = document.getElementById('btn-intro-sound');
+        const introSoundLabel = document.getElementById('intro-sound-label');
+        const btnIntroFlash = document.getElementById('btn-intro-flash');
+        const introFlashLabel = document.getElementById('intro-flash-label');
+
+        const btnSound = document.getElementById('btn-sound');
+        const hudSoundLabel = document.getElementById('hud-sound-label');
+        const btnFlash = document.getElementById('btn-flash');
+        const hudFlashLabel = document.getElementById('hud-flash-label');
+        const btnFullscreen = document.getElementById('btn-fullscreen');
+        const btnDisturb = document.getElementById('btn-disturb');
+
+        function syncUIControls() {
+            introSoundLabel.textContent = State.soundEnabled ? 'ON' : 'OFF';
+            introSoundLabel.className = State.soundEnabled ? 'text-red-400' : 'text-zinc-500';
+            hudSoundLabel.textContent = State.soundEnabled ? 'ON' : 'OFF';
+            hudSoundLabel.className = State.soundEnabled ? 'text-red-400' : 'text-zinc-500';
+
+            introFlashLabel.textContent = State.reducedFlashing ? 'ON' : 'OFF';
+            introFlashLabel.className = State.reducedFlashing ? 'text-red-400' : 'text-zinc-300';
+            hudFlashLabel.textContent = State.reducedFlashing ? 'REDUCED' : 'NORMAL';
+            hudFlashLabel.className = State.reducedFlashing ? 'text-amber-400' : 'text-zinc-300';
+        }
+
+        btnEnter.addEventListener('click', () => {
+            State.hasEntered = true;
+            if (State.soundEnabled) {
+                AudioEngine.init();
+            }
+            introOverlay.style.opacity = '0';
+            introOverlay.style.pointerEvents = 'none';
+            setTimeout(() => {
+                introOverlay.style.display = 'none';
+            }, 1000);
+
+            hudLayer.style.opacity = '1';
+            wakeHUD();
+
+            // Trigger an initial slow blink & focus lock as the user enters
+            State.blinkAmount = 1.0;
+            State.isBlinking = true;
+            AudioEngine.playFocusPulse();
+            showWhisper("IT KNOWS WHERE YOU ARE LOOKING", 2800);
+        });
+
+        function toggleSound() {
+            AudioEngine.setSoundEnabled(!State.soundEnabled);
+            syncUIControls();
+        }
+
+        function toggleReducedFlashing() {
+            State.reducedFlashing = !State.reducedFlashing;
+            syncUIControls();
+        }
+
+        btnIntroSound.addEventListener('click', toggleSound);
+        btnSound.addEventListener('click', toggleSound);
+        btnIntroFlash.addEventListener('click', toggleReducedFlashing);
+        btnFlash.addEventListener('click', toggleReducedFlashing);
+
+        btnDisturb.addEventListener('click', () => {
+            triggerJumpscare();
+        });
+
+        btnFullscreen.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            } else {
+                document.exitFullscreen().catch(() => {});
+            }
+        });
+
+        /**************************************************************************
+         * 12. CINEMATIC HORROR ANIMATION & BIOLOGICAL KINEMATICS LOOP
+         **************************************************************************/
+        const clock = new THREE.Clock();
+
+        function triggerBlink() {
+            if (State.isBlinking || State.isJumpscaring) return;
+            State.isBlinking = true;
+            AudioEngine.playWetEyeSound(0.45);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const dt = Math.min(clock.getDelta(), 0.1);
+            const elapsed = clock.getElapsedTime();
+
+            // 1. Update Shader Time & Subtle Light Flicker
+            eyeUniforms.uTime.value = elapsed;
+
+            // Occasional subtle atmospheric voltage flicker
+            let flicker = 1.0;
+            if (Math.random() < 0.018) {
+                flicker = 0.65 + Math.random() * 0.35;
+            }
+            eyeUniforms.uFlicker.value = THREE.MathUtils.lerp(eyeUniforms.uFlicker.value, flicker, 0.25);
+            keyLight.intensity = 1.55 * eyeUniforms.uFlicker.value;
+
+            // 2. Autonomous Horror Eye Behavior State Machine
+            State.behaviorTimer -= dt;
+            if (State.behaviorTimer <= 0 && !State.isJumpscaring) {
+                const roll = Math.random();
+                if (roll < 0.68) {
+                    // Track the user's cursor/finger
+                    if (State.behaviorMode !== 'TRACKING') {
+                        AudioEngine.playWetEyeSound(0.55);
+                    }
+                    State.behaviorMode = 'TRACKING';
+                    State.behaviorTimer = 3.5 + Math.random() * 5.0;
+                    telemetryEl.textContent = "STATE: OBSERVING SUBJECT";
+                } else if (roll < 0.82) {
+                    // Briefly look away into the dark corner, then snap back
+                    State.behaviorMode = 'LOOK_AWAY';
+                    State.saccadeOffsetYaw = (Math.random() > 0.5 ? 1 : -1) * (0.35 + Math.random() * 0.25);
+                    State.saccadeOffsetPitch = (Math.random() - 0.5) * 0.35;
+                    State.behaviorTimer = 0.7 + Math.random() * 0.9;
+                    AudioEngine.playWetEyeSound(0.6);
+                    telemetryEl.textContent = "STATE: SCANNING PERIPHERY";
+                } else if (roll < 0.92) {
+                    // Uncomfortable dead-still freeze
+                    State.behaviorMode = 'DEAD_STARE';
+                    State.behaviorTimer = 1.8 + Math.random() * 1.6;
+                    telemetryEl.textContent = "STATE: LOCKED";
+                } else {
+                    // Rare sudden wide-eyed stare
+                    State.behaviorMode = 'WIDE_STARE';
+                    State.targetPupilSize = 0.22;
+                    State.agitation = Math.min(1.0, State.agitation + 0.28);
+                    State.behaviorTimer = 2.0 + Math.random() * 1.5;
+                    AudioEngine.playFocusPulse();
+                    telemetryEl.textContent = "STATE: DILATING FIXATION";
+                }
+            }
+
+            // 3. Biological Micro-Saccades & Gaze Target Calculation
+            const MAX_YAW = 0.56;   // Never rotate unnaturally or leave socket
+            const MAX_PITCH = 0.40;
+
+            if (State.isJumpscaring) {
+                // Dead-center lock onto the viewer
+                State.targetYaw = 0;
+                State.targetPitch = 0;
+            } else if (State.behaviorMode === 'DEAD_STARE') {
+                // Completely frozen, zero movement (uncomfortable silence)
+            } else if (State.behaviorMode === 'LOOK_AWAY') {
+                State.targetYaw = THREE.MathUtils.clamp(State.saccadeOffsetYaw, -MAX_YAW, MAX_YAW);
+                State.targetPitch = THREE.MathUtils.clamp(State.saccadeOffsetPitch, -MAX_PITCH, MAX_PITCH);
+            } else {
+                // TRACKING or WIDE_STARE: Follow user's cursor or finger with subtle biological micro-saccades
+                if (Math.random() < 0.05) {
+                    State.saccadeOffsetYaw = (Math.random() - 0.5) * 0.032;
+                    State.saccadeOffsetPitch = (Math.random() - 0.5) * 0.026;
+                }
+                State.targetYaw = THREE.MathUtils.clamp(State.pointerX * MAX_YAW + State.saccadeOffsetYaw, -MAX_YAW, MAX_YAW);
+                State.targetPitch = THREE.MathUtils.clamp(-State.pointerY * MAX_PITCH + State.saccadeOffsetPitch, -MAX_PITCH, MAX_PITCH);
+            }
+
+            // Smooth pursuit interpolation (fast snap during jumpscare or rapid focus)
+            const trackingSpeed = State.isJumpscaring ? 22.0 : (State.isPointerDown ? 12.0 : 7.5);
+            if (State.behaviorMode !== 'DEAD_STARE' || State.isJumpscaring) {
+                State.currentYaw = THREE.MathUtils.lerp(State.currentYaw, State.targetYaw, Math.min(1.0, dt * trackingSpeed));
+                State.currentPitch = THREE.MathUtils.lerp(State.currentPitch, State.targetPitch, Math.min(1.0, dt * trackingSpeed));
+            }
+
+            eyeballGroup.rotation.y = State.currentYaw;
+            eyeballGroup.rotation.x = State.currentPitch;
+
+            // 4. Natural Eyelid Deformation & Blinking Kinematics
+            State.blinkTimer -= dt;
+            if (State.blinkTimer <= 0 && !State.isJumpscaring && State.behaviorMode !== 'DEAD_STARE') {
+                triggerBlink();
+                State.blinkTimer = 3.2 + Math.random() * 5.2;
+            }
+
+            if (State.isBlinking) {
+                State.blinkAmount += dt * 9.5;
+                if (State.blinkAmount >= Math.PI) {
+                    State.blinkAmount = 0.0;
+                    State.isBlinking = false;
+                }
+            }
+
+            // Decay flinch from sudden cursor velocity
+            State.eyelidFlinch = THREE.MathUtils.lerp(State.eyelidFlinch, 0.0, dt * 6.0);
+            State.pointerVelocity = THREE.MathUtils.lerp(State.pointerVelocity, 0.0, dt * 5.0);
+
+            const blinkCurve = State.isBlinking ? Math.sin(State.blinkAmount) : 0.0;
+
+            // Eyelids naturally follow vertical gaze (upper lid lifts when looking up, lowers when looking down)
+            const gazeLidFollow = State.currentPitch * 0.36;
+
+            // Wide-open modifier during Jumpscare or Wide Stare
+            let wideOpenOffset = 0.0;
+            if (State.isJumpscaring) {
+                wideOpenOffset = -0.36;
+            } else if (State.behaviorMode === 'WIDE_STARE') {
+                wideOpenOffset = -0.22;
+            }
+
+            const targetUpperX = THREE.MathUtils.lerp(
+                BASE_UPPER_LID_OPEN + gazeLidFollow + wideOpenOffset + State.eyelidFlinch,
+                0.08,
+                blinkCurve
+            );
+            const targetLowerX = THREE.MathUtils.lerp(
+                BASE_LOWER_LID_OPEN + gazeLidFollow * 0.5 - wideOpenOffset * 0.7 - State.eyelidFlinch * 0.6,
+                -0.05,
+                blinkCurve
+            );
+
+            upperLidGroup.rotation.x = THREE.MathUtils.lerp(upperLidGroup.rotation.x, targetUpperX, dt * 18.0);
+            lowerLidGroup.rotation.x = THREE.MathUtils.lerp(lowerLidGroup.rotation.x, targetLowerX, dt * 18.0);
+
+            // Subtle eyelid horizontal twist following yaw
+            upperLidGroup.rotation.y = State.currentYaw * 0.18;
+            lowerLidGroup.rotation.y = State.currentYaw * 0.18;
+
+            // 5. Pupil Dilation, Agitation & Blood Vein Pulsing
+            if (!State.isJumpscaring && !State.isPointerDown && State.behaviorMode === 'TRACKING') {
+                // Subtle autonomous pupillary hippus (unnatural breathing oscillation)
+                State.targetPupilSize = 0.33 + Math.sin(elapsed * 1.7) * 0.035 - State.pointerVelocity * 0.08;
+            }
+            State.currentPupilSize = THREE.MathUtils.lerp(State.currentPupilSize, State.targetPupilSize, dt * 6.5);
+            eyeUniforms.uPupilSize.value = State.currentPupilSize;
+
+            // Decay agitation & vein pulse smoothly toward tense baseline
+            if (!State.isJumpscaring) {
+                State.agitation = THREE.MathUtils.lerp(State.agitation, 0.15 + State.pointerVelocity * 0.35, dt * 0.9);
+            }
+            State.veinPulse = THREE.MathUtils.lerp(State.veinPulse, 0.0, dt * 2.5);
+
+            eyeUniforms.uAgitation.value = State.agitation;
+            eyeUniforms.uVeinPulse.value = State.veinPulse;
+            crimsonRimLight.intensity = 2.0 + State.agitation * 2.5 + State.veinPulse * 2.0;
+
+            AudioEngine.updateDrone(State.agitation);
+            if (agitationEl) {
+                agitationEl.textContent = `AGITATION: ${Math.round(State.agitation * 100)}%`;
+            }
+
+            // 6. Subtle Floating Breathing Motion of the Entire Socket + Camera Shake
+            if (State.behaviorMode !== 'DEAD_STARE') {
+                watcherRoot.position.y = Math.sin(elapsed * 0.95) * 0.045;
+                watcherRoot.position.x = Math.cos(elapsed * 0.62) * 0.025;
+                watcherRoot.rotation.z = Math.sin(elapsed * 0.45) * 0.018;
+            }
+
+            // Camera Push & Shake Kinematics
+            const desiredCamZ = BASE_CAMERA_Z + State.cameraZoomOffset;
+            camera.position.z = THREE.MathUtils.lerp(camera.position.z, desiredCamZ, dt * (State.isJumpscaring ? 11.0 : 3.5));
+
+            if (State.cameraShake > 0.001) {
+                camera.position.x = (Math.random() - 0.5) * State.cameraShake;
+                camera.position.y = (Math.random() - 0.5) * State.cameraShake;
+                State.cameraShake *= 0.88;
+            } else {
+                camera.position.x = THREE.MathUtils.lerp(camera.position.x, State.pointerX * 0.12, dt * 2.0);
+                camera.position.y = THREE.MathUtils.lerp(camera.position.y, State.pointerY * 0.08, dt * 2.0);
+            }
+            camera.lookAt(0, 0, 0);
+
+            // 7. Update Floating Dust & Volumetric Particles
+            const pPos = particleGeo.attributes.position.array;
+            for (let i = 0; i < particleCount; i++) {
+                const idx = i * 3;
+                pPos[idx + 1] += particleSpeeds[i] * dt * 0.35;
+                pPos[idx] += Math.sin(elapsed * 0.5 + i) * dt * 0.08;
+                if (pPos[idx + 1] > 3.2) {
+                    pPos[idx + 1] = -3.2;
+                }
+            }
+            particleGeo.attributes.position.needsUpdate = true;
+
+            // 8. Render 2D Darkness Ripples & 3D WebGL Scene
+            updateAndRenderRipples();
+            renderer.render(scene, camera);
+        }
+
+        // Responsive Window Resize Handler
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        });
+
+        // Start animation loop on window load
+        window.onload = function () {
+            syncUIControls();
+            animate();
+        };
+    </script>
+</body>
+</html>
